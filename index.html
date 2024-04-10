@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Management System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f7f7f7;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .form-group {
+            margin-bottom: 10px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+        }
+        .form-group input[type=text], 
+        .form-group input[type=number] {
+            width: calc(100% - 16px);
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .form-group div {
+            display: flex;
+            align-items: center;
+        }
+        .form-group button {
+            padding: 8px 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .form-group button:hover {
+            background-color: #45a049;
+        }
+        .action-buttons button {
+            margin-right: 5px;
+        }
+        .download-container {
+            text-align: center;
+            margin-top: 20px;
+        }
+        @media screen and (max-width: 600px) {
+            .container {
+                margin: 10px;
+                padding: 10px;
+            }
+            .form-group input[type=text], 
+            .form-group input[type=number] {
+                width: 100%;
+            }
+            .form-group button {
+                width: 100%;
+            }
+        }
+        .btn{
+            padding: 8px 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1><i class="fas fa-box"></i> Inventory Management System</h1>
+
+    <!-- Upload Excel Sheet -->
+    <div class="form-group">
+        <label for="excelFile"><i class="fas fa-upload"></i> Upload Excel Sheet:</label>
+        <input type="file" id="excelFile" accept=".xls,.xlsx">
+        <button onclick="uploadExcel()"><i class="fas fa-plus-circle"></i> Upload</button>
+    </div>
+
+    <!-- Add Item Form -->
+    <div class="form-group">
+        <label for="itemName"><i class="fas fa-"></i> Item Name:</label>
+        <input type="text" id="itemName">
+    </div>
+    <div class="form-group">
+        <label for="itemPrice"><i class="fas fa-rupee-sign"></i> Item Price (INR):</label>
+        <input type="number" id="itemPrice">
+    </div>
+    <div class="form-group">
+        <label for="itemQuantity"><i class="fas fa-cubes"></i> Item Quantity:</label>
+        <div>
+            <input type="number" id="itemQuantity" value="1">
+        </div>
+    </div>
+    <button class="btn" onclick="addItem()"><i class="fas fa-plus"></i> Add Item</button>
+
+    <!-- Inventory Table -->
+    <table id="inventoryTable">
+        <thead>
+            <tr>
+                <th>Item Name</th>
+                <th>Price (INR)</th>
+                <th>Quantity</th>
+                <th>Gross Price (INR)</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Inventory items will be added here -->
+        </tbody>
+    </table>
+
+    <!-- Download as Excel Button -->
+    <div class="download-container">
+        <button onclick="downloadExcel()"><i class="fas fa-download"></i> Download as Excel</button>
+    </div>
+</div>
+
+<script>
+    // Function to initialize inventory from localStorage
+    function initializeInventory() {
+        var inventory = JSON.parse(localStorage.getItem('inventory')) || [];
+        var table = document.getElementById('inventoryTable').getElementsByTagName('tbody')[0];
+        for (var i = 0; i < inventory.length; i++) {
+            var item = inventory[i];
+            var newRow = table.insertRow(table.rows.length);
+            newRow.insertCell(0).innerHTML = item.name;
+            newRow.insertCell(1).innerHTML = '₹' + item.price;
+            newRow.insertCell(2).innerHTML = item.quantity;
+            newRow.insertCell(3).innerHTML = '₹' + (item.price * item.quantity);
+            var cellAction = newRow.insertCell(4);
+            cellAction.innerHTML = '<button onclick="decrementItem(this)"><i class="fas fa-minus"></i></button>' +
+                '<button onclick="incrementItem(this)"><i class="fas fa-plus"></i></button>' +
+                '<button onclick="removeItem(this)"><i class="fas fa-trash-alt"></i></button>';
+        }
+    }
+
+    // Initialize inventory on page load
+    initializeInventory();
+
+    // Function to upload Excel sheet
+    function uploadExcel() {
+        var fileInput = document.getElementById('excelFile');
+        var file = fileInput.files[0];
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            var data = new Uint8Array(e.target.result);
+            var workbook = XLSX.read(data, { type: 'array' });
+            var sheet = workbook.Sheets[workbook.SheetNames[0]];
+            var inventoryData = XLSX.utils.sheet_to_json(sheet);
+
+            var table = document.getElementById('inventoryTable').getElementsByTagName('tbody')[0];
+            for (var i = 0; i < inventoryData.length; i++) {
+                var item = inventoryData[i];
+                var newRow = table.insertRow(table.rows.length);
+                newRow.insertCell(0).innerHTML = item['Item Name'];
+                newRow.insertCell(1).innerHTML = '₹' + item['Price'];
+                newRow.insertCell(2).innerHTML = item['Quantity'];
+                newRow.insertCell(3).innerHTML = '₹' + (item['Price'] * item['Quantity']);
+                var cellAction = newRow.insertCell(4);
+                cellAction.innerHTML = '<button onclick="decrementItem(this)"><i class="fas fa-minus"></i></button>' +
+                    '<button onclick="incrementItem(this)"><i class="fas fa-plus"></i></button>' +
+                    '<button onclick="removeItem(this)"><i class="fas fa-trash-alt"></i></button>';
+            }
+
+            // Save inventory to localStorage after uploading from Excel
+            saveInventory();
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    // Add item function
+    function addItem() {
+        var itemName = document.getElementById('itemName').value;
+        var itemPrice = document.getElementById('itemPrice').value;
+        var itemQuantity = document.getElementById('itemQuantity').value;
+        var grossPrice = itemPrice * itemQuantity;
+
+        var table = document.getElementById('inventoryTable').getElementsByTagName('tbody')[0];
+        var newRow = table.insertRow(table.rows.length);
+        newRow.insertCell(0).innerHTML = itemName;
+        newRow.insertCell(1).innerHTML = '₹' + itemPrice;
+        newRow.insertCell(2).innerHTML = itemQuantity;
+        newRow.insertCell(3).innerHTML = '₹' + grossPrice;
+        var cellAction = newRow.insertCell(4);
+        cellAction.innerHTML = '<button onclick="decrementItem(this)"><i class="fas fa-minus"></i></button>' +
+            '<button onclick="incrementItem(this)"><i class="fas fa-plus"></i></button>' +
+            '<button onclick="removeItem(this)"><i class="fas fa-trash-alt"></i></button>';
+
+        // Save inventory to localStorage after adding an item
+        saveInventory();
+    }
+
+    // Remove item function
+    function removeItem(row) {
+        var rowIndex = row.parentNode.parentNode.rowIndex;
+        document.getElementById('inventoryTable').deleteRow(rowIndex);
+
+        // Save inventory to localStorage after removing an item
+        saveInventory();
+    }
+
+    // Increment item quantity function
+    function incrementItem(row) {
+        var quantityCell = row.parentNode.parentNode.cells[2];
+        var quantity = parseInt(quantityCell.innerHTML);
+        quantity++;
+        quantityCell.innerHTML = quantity;
+
+        var priceCell = row.parentNode.parentNode.cells[1];
+        var itemPrice = parseFloat(priceCell.innerHTML.replace('₹', ''));
+        var grossPriceCell = row.parentNode.parentNode.cells[3];
+        grossPriceCell.innerHTML = '₹' + (itemPrice * quantity);
+
+        // Save inventory to localStorage after incrementing an item
+        saveInventory();
+    }
+
+    // Decrement item quantity function
+    function decrementItem(row) {
+        var quantityCell = row.parentNode.parentNode.cells[2];
+        var quantity = parseInt(quantityCell.innerHTML);
+        if (quantity > 1) {
+            quantity--;
+            quantityCell.innerHTML = quantity;
+
+            var priceCell = row.parentNode.parentNode.cells[1];
+            var itemPrice = parseFloat(priceCell.innerHTML.replace('₹', ''));
+            var grossPriceCell = row.parentNode.parentNode.cells[3];
+            grossPriceCell.innerHTML = '₹' + (itemPrice * quantity);
+
+            // Save inventory to localStorage after decrementing an item
+            saveInventory();
+        }
+    }
+
+    // Function to save inventory to localStorage
+    function saveInventory() {
+        var inventory = [];
+        var table = document.getElementById('inventoryTable').getElementsByTagName('tbody')[0];
+        for (var i = 0; i < table.rows.length; i++) {
+            var row = table.rows[i];
+            var item = {
+                name: row.cells[0].innerHTML,
+                price: parseFloat(row.cells[1].innerHTML.replace('₹', '')),
+                quantity: parseInt(row.cells[2].innerHTML)
+            };
+            inventory.push(item);
+        }
+        localStorage.setItem('inventory', JSON.stringify(inventory));
+    }
+
+    // Function to download inventory as Excel
+    function downloadExcel() {
+        var table = document.getElementById('inventoryTable');
+        var wb = XLSX.utils.table_to_book(table, { sheet: "Sheet1" });
+        XLSX.writeFile(wb, 'inventory.xlsx');
+    }
+
+    // Initialize inventory on page load
+    initializeInventory();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
+</body>
+</html>
