@@ -291,9 +291,6 @@
         var wb = XLSX.utils.table_to_book(table, { sheet: "Sheet1" });
         XLSX.writeFile(wb, 'inventory.xlsx');
     }
-
-    // Initialize inventory on page load
-    initializeInventory();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
 </body>
