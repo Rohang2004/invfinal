@@ -61,7 +61,7 @@
         }
         .form-group button {
             padding: 8px 12px;
-            background-color: #4CAF50;
+            background-color: #3598db;
             color: white;
             border: none;
             border-radius: 4px;
@@ -76,32 +76,45 @@
         .download-container {
             text-align: center;
             margin-top: 20px;
-            
         }
-        @media screen and (max-width: 600px) {
-            .container {
-                margin: 10px;
-                padding: 10px;
-            }
-            .form-group input[type=text], 
-            .form-group input[type=number] {
-                width: 100%;
-            }
-            .form-group button {
-                width: 100%;
-            }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            border-radius: 8px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
         }
         .btn{
             padding: 8px 12px;
-            background-color: #4CAF50;
+            background-color: #3598db;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-        }
-        .itemName,.itemPrice,.itemQuantity{
-            background-color: transparent;
-
         }
     </style>
 </head>
@@ -155,10 +168,28 @@
             <!-- Inventory items will be added here -->
         </tbody>
     </table>
-
     <!-- Download as Excel Button -->
-    <div class="download-container">
-        <button onclick="downloadExcel()"><i class="fas fa-download"></i> Download as Excel</button>
+<div class="download-container">
+    <button class="btn" onclick="printTable()"><i class="fas fa-print"></i> Print Table</button>
+</div>
+
+    
+
+    <!-- Modify Item Popup -->
+    <div id="modifyPopup" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModifyPopup()">&times;</span>
+            <h2>Modify Item</h2>
+            <div class="form-group">
+                <label for="newItemName">New Item Name:</label>
+                <input type="text" id="newItemName">
+            </div>
+            <div class="form-group">
+                <label for="newItemPrice">New Item Price (INR):</label>
+                <input type="number" id="newItemPrice">
+            </div>
+            <button class="btn" onclick="saveModification()">Save</button>
+        </div>
     </div>
 </div>
 
@@ -175,7 +206,8 @@
             newRow.insertCell(2).innerHTML = item.quantity;
             newRow.insertCell(3).innerHTML = '₹' + (item.price * item.quantity);
             var cellAction = newRow.insertCell(4);
-            cellAction.innerHTML = '<button onclick="decrementItem(this)"><i class="fas fa-minus"></i></button>' +
+            cellAction.innerHTML = '<button class="modify-button" onclick="openModifyPopup(this)"><i class="fas fa-edit"></i></button>' +
+                '<button onclick="decrementItem(this)"><i class="fas fa-minus"></i></button>' +
                 '<button onclick="incrementItem(this)"><i class="fas fa-plus"></i></button>' +
                 '<button onclick="removeItem(this)"><i class="fas fa-trash-alt"></i></button>';
         }
@@ -224,7 +256,8 @@
                 newRow.insertCell(2).innerHTML = item['Quantity'];
                 newRow.insertCell(3).innerHTML = '₹' + (item['Price'] * item['Quantity']);
                 var cellAction = newRow.insertCell(4);
-                cellAction.innerHTML = '<button onclick="decrementItem(this)"><i class="fas fa-minus"></i></button>' +
+                cellAction.innerHTML = '<button class="modify-button" onclick="openModifyPopup(this)"><i class="fas fa-edit"></i></button>' +
+                    '<button onclick="decrementItem(this)"><i class="fas fa-minus"></i></button>' +
                     '<button onclick="incrementItem(this)"><i class="fas fa-plus"></i></button>' +
                     '<button onclick="removeItem(this)"><i class="fas fa-trash-alt"></i></button>';
             }
@@ -249,7 +282,8 @@
         newRow.insertCell(2).innerHTML = itemQuantity;
         newRow.insertCell(3).innerHTML = '₹' + grossPrice;
         var cellAction = newRow.insertCell(4);
-        cellAction.innerHTML = '<button onclick="decrementItem(this)"><i class="fas fa-minus"></i></button>' +
+        cellAction.innerHTML = '<button class="modify-button" onclick="openModifyPopup(this)"><i class="fas fa-edit"></i></button>' +
+            '<button onclick="decrementItem(this)"><i class="fas fa-minus"></i></button>' +
             '<button onclick="incrementItem(this)"><i class="fas fa-plus"></i></button>' +
             '<button onclick="removeItem(this)"><i class="fas fa-trash-alt"></i></button>';
 
@@ -315,6 +349,20 @@
         }
         localStorage.setItem('inventory', JSON.stringify(inventory));
     }
+    // Function to print the table
+function printTable() {
+    var table = document.getElementById('inventoryTable').cloneNode(true);
+    // Remove the last column (Action column)
+    var rows = table.getElementsByTagName('tr');
+    for (var i = 0; i < rows.length; i++) {
+        rows[i].deleteCell(-1);
+    }
+    var printContents = table.outerHTML;
+    var originalContents = document.body.innerHTML;
+    document.body.innerHTML = printContents;
+    window.print();
+    document.body.innerHTML = originalContents;
+}
 
     // Function to download inventory as Excel
     function downloadExcel() {
@@ -322,6 +370,46 @@
         var wb = XLSX.utils.table_to_book(table, { sheet: "Sheet1" });
         XLSX.writeFile(wb, 'inventory.xlsx');
     }
+
+    // Function to open modify popup
+    function openModifyPopup(row) {
+        var popup = document.getElementById("modifyPopup");
+        popup.style.display = "block";
+        // Get the current values of item name and price
+        var currentItemName = row.parentNode.parentNode.cells[0].innerHTML;
+        var currentItemPrice = row.parentNode.parentNode.cells[1].innerHTML.replace('₹', '');
+        // Populate the popup fields with current values
+        document.getElementById("newItemName").value = currentItemName;
+        document.getElementById("newItemPrice").value = currentItemPrice;
+        // Save the row index for later use
+        popup.rowIndex = row.parentNode.parentNode.rowIndex;
+    }
+
+    // Function to save modification
+    function saveModification() {
+        var newName = document.getElementById("newItemName").value;
+        var newPrice = document.getElementById("newItemPrice").value;
+        var rowIndex = document.getElementById("modifyPopup").rowIndex;
+        // Update the values in the table
+        var table = document.getElementById('inventoryTable');
+        table.rows[rowIndex].cells[0].innerHTML = newName;
+        table.rows[rowIndex].cells[1].innerHTML = '₹' + newPrice;
+        // Close the popup
+        closeModifyPopup();
+    }
+
+    // Function to close modify popup
+    function closeModifyPopup() {
+        document.getElementById("modifyPopup").style.display = "none";
+    }
+
+    // Event listener for modify buttons
+    var modifyButtons = document.querySelectorAll('.modify-button');
+    modifyButtons.forEach(function(button) {
+        button.addEventListener('click', function() {
+            openModifyPopup(this);
+        });
+    });
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
 </body>
